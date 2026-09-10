@@ -18,6 +18,11 @@ export const connectDB = async (): Promise<void> => {
     });
     isConnected = true;
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
+    
+    // Auto-seed initial store products and categories if MongoDB is fresh
+    import("../services/seedService").then(({ seedIfEmpty }) => {
+      seedIfEmpty();
+    }).catch(() => {});
   } catch (error: any) {
     console.warn(`⚠️ MongoDB offline or unreachable (${error.message}). App running in high-speed in-memory mode.`);
   }

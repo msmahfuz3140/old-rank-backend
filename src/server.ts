@@ -15,6 +15,8 @@ import deliveryRoutes from "./routes/deliveryRoutes";
 import couponRoutes from "./routes/couponRoutes";
 import vendorRoutes from "./routes/vendorRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
+import uploadRoutes from "./routes/uploadRoutes";
+import settingsRoutes from "./routes/settingsRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,7 +39,7 @@ app.use(morgan("dev"));
 app.get("/api/v1/health", (_req: Request, res: Response) => {
   res.json({
     status: "healthy",
-    service: "Shop Genie Next API",
+    service: "Old Rank API Server",
     timestamp: new Date().toISOString(),
     version: "2.0.0",
   });
@@ -52,6 +54,8 @@ app.use("/api/v1/delivery", deliveryRoutes);
 app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/vendors", vendorRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/v1/settings", settingsRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {

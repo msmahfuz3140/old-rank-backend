@@ -398,7 +398,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     }
 
     let filtered = [...fallbackProducts];
-    if (category) {
+    if (category && category !== "all") {
       filtered = filtered.filter((p) => p.category.slug === category);
     }
     if (search) {
