@@ -14,7 +14,7 @@ const fallbackCategories = [
   { _id: "c5", name: "Digital Items", slug: "digital-items", icon: "Sparkles", level: 1, subcategories: [] },
 ];
 
-const fallbackProducts = [
+let fallbackProducts: any[] = [
   {
     _id: "p1",
     name: "Intel Core i5 Desktop Computer Full Setup Gaming PC",
@@ -403,7 +403,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     }
     if (search) {
       const q = String(search).toLowerCase();
-      filtered = filtered.filter((p) => p.name.toLowerCase().includes(q) || p.tags.some((t) => t.includes(q)));
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(q) || (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q))));
     }
     if (isHotDeal === "true") {
       filtered = filtered.filter((p) => p.isHotDeal);
@@ -480,5 +480,114 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
     res.json({ success: true, data: fallbackCategories });
   } catch (error: any) {
     res.json({ success: true, data: fallbackCategories });
+  }
+};
+
+export const createProduct = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = req.body;
+    const cleanName = data.name || "Untitled Product";
+    const slugBase = (data.slug || cleanName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const generatedSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+    const newProd = {
+      _id: `p_${Date.now()}`,
+      name: cleanName,
+      slug: generatedSlug,
+      shortDescription: data.shortDescription || cleanName,
+      description: data.description || cleanName,
+      category: typeof data.category === "object" ? data.category : { _id: "c2", name: data.category || "Men's Fashion", slug: (data.category || "fashion").toLowerCase().replace(/[^a-z0-9]+/g, "-") },
+      vendor: typeof data.vendor === "object" ? data.vendor : { _id: "v_or", shopName: data.vendor || "Old Rank Official", slug: "old-rank", isVerified: true, rating: 5.0 },
+      mainImage: data.mainImage || "/images/old-rank-banner.jpg",
+      galleryImages: data.galleryImages || [data.mainImage || "/images/old-rank-banner.jpg"],
+      basePrice: Number(data.basePrice) || 990,
+      oldPrice: Number(data.oldPrice) || (Number(data.basePrice) ? Math.round(Number(data.basePrice) * 1.25) : 1250),
+      discountPercentage: data.discountPercentage || (data.oldPrice && data.basePrice ? Math.round(((Number(data.oldPrice) - Number(data.basePrice)) / Number(data.oldPrice)) * 100) : 20),
+      sku: data.sku || `OR-${Date.now().toString().slice(-4)}`,
+      stock: Number(data.stock) !== undefined ? Number(data.stock) : 50,
+      isHotDeal: Boolean(data.isHotDeal),
+      isFeatured: Boolean(data.isFeatured),
+      rating: 5.0,
+      reviewCount: 1,
+      tags: data.tags || ["old-rank", "clothing", "fashion"],
+      variants: data.variants || [],
+      createdAt: new Date().toISOString(),
+    };
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Product.create(newProd);
+      } catch (err) {
+        console.warn("MongoDB product create skipped:", err);
+      }
+    }
+
+    fallbackProducts.unshift(newProd);
+
+    res.status(201).json({
+      success: true,
+      message: "প্রোডাক্ট সফলভাবে পোস্ট করা হয়েছে!",
+      data: newProd,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateProduct = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Product.findByIdAndUpdate(id, updates);
+      } catch (err) {
+        console.warn("MongoDB product update skipped:", err);
+      }
+    }
+
+    const idx = fallbackProducts.findIndex((p) => p._id === id || p.slug === id);
+    if (idx !== -1) {
+      fallbackProducts[idx] = { ...fallbackProducts[idx], ...updates };
+      res.json({
+        success: true,
+        message: "প্রোডাক্ট সফলভাবে আপডেট করা হয়েছে!",
+        data: fallbackProducts[idx],
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "প্রোডাক্ট আপডেট সম্পন্ন",
+      data: updates,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Product.findByIdAndDelete(id);
+      } catch (err) {
+        console.warn("MongoDB product delete skipped:", err);
+      }
+    }
+
+    fallbackProducts = fallbackProducts.filter((p) => p._id !== id && p.slug !== id);
+
+    res.json({
+      success: true,
+      message: "প্রোডাক্ট মুছে ফেলা হয়েছে!",
+      id,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

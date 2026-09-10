@@ -3,7 +3,25 @@ import mongoose from "mongoose";
 import { Vendor } from "../models/Vendor";
 import { Product } from "../models/Product";
 
-const fallbackVendors = [
+let fallbackVendors: any[] = [
+  {
+    _id: "v_or",
+    shopName: "Old Rank Official",
+    slug: "old-rank",
+    logo: "/images/logo.png",
+    banner: "/images/old-rank-banner.jpg",
+    rating: 5.0,
+    reviewCount: 350,
+    isVerified: true,
+    status: "Active",
+    plan: "VIP",
+    ownerName: "Old Rank Authority",
+    email: "mdmahfuzulhaque3140@gmail.com",
+    totalProducts: 45,
+    phone: "01956016119",
+    address: "Dhanmondi, Dhaka, Bangladesh",
+    description: "Official Flagship Brand Store of Old Rank — Wear Your Rank.",
+  },
   {
     _id: "v1",
     shopName: "Gadget King BD",
@@ -13,6 +31,10 @@ const fallbackVendors = [
     rating: 4.9,
     reviewCount: 98,
     isVerified: true,
+    status: "Active",
+    plan: "Pro",
+    ownerName: "তানভীর আহমেদ",
+    email: "seller@gadgetking.com",
     totalProducts: 35,
     phone: "01822334455",
     address: "Multiplan Center, Elephant Road, Dhaka",
@@ -128,5 +150,157 @@ export const getVendorBySlug = async (req: Request, res: Response): Promise<void
         products: [],
       },
     });
+  }
+};
+
+export const createVendor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = req.body;
+    const cleanShop = data.shopName || "Untitled Shop";
+    const slugBase = (data.slug || cleanShop).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const generatedSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+    const newVendor = {
+      _id: `v_${Date.now()}`,
+      shopName: cleanShop,
+      slug: generatedSlug,
+      logo: data.logo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80",
+      banner: data.banner || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
+      rating: 5.0,
+      reviewCount: 1,
+      isVerified: Boolean(data.isVerified !== undefined ? data.isVerified : true),
+      status: data.status || "Active",
+      plan: data.plan || "Pro",
+      ownerName: data.ownerName || cleanShop,
+      email: data.email || `${slugBase}@oldrank.com`,
+      totalProducts: Number(data.totalProducts) || 0,
+      phone: data.phone || "01956016119",
+      address: data.address || "Dhaka, Bangladesh",
+      description: data.description || `${cleanShop} — ভেরিফাইড মার্চেন্ট পার্টনার`,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Vendor.create(newVendor);
+      } catch (err) {
+        console.warn("MongoDB vendor create skipped:", err);
+      }
+    }
+
+    fallbackVendors.unshift(newVendor);
+
+    res.status(201).json({
+      success: true,
+      message: "সেলার সফলভাবে যুক্ত করা হয়েছে!",
+      data: newVendor,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const registerSeller = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = req.body;
+    const cleanShop = data.shopName || "New Merchant Store";
+    const slugBase = cleanShop.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const generatedSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+    const newVendor = {
+      _id: `v_${Date.now()}`,
+      shopName: cleanShop,
+      slug: generatedSlug,
+      logo: data.logo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80",
+      banner: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
+      rating: 5.0,
+      reviewCount: 0,
+      isVerified: false,
+      status: "Active",
+      plan: data.plan || "Pro",
+      ownerName: data.ownerName || cleanShop,
+      email: data.email || `${slugBase}@gmail.com`,
+      totalProducts: 0,
+      phone: data.phone || "01700000000",
+      address: data.address || "Bangladesh",
+      description: data.description || `${cleanShop} — প্রিমিয়াম মার্চেন্ট স্টোর`,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Vendor.create(newVendor);
+      } catch (err) {
+        console.warn("MongoDB vendor register skipped:", err);
+      }
+    }
+
+    fallbackVendors.unshift(newVendor);
+
+    res.status(201).json({
+      success: true,
+      message: "🎉 অভিনন্দন! আপনার প্রিমিয়াম সেলার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে।",
+      data: newVendor,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateVendor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Vendor.findByIdAndUpdate(id, updates);
+      } catch (err) {
+        console.warn("MongoDB vendor update skipped:", err);
+      }
+    }
+
+    const idx = fallbackVendors.findIndex((v) => v._id === id || v.slug === id);
+    if (idx !== -1) {
+      fallbackVendors[idx] = { ...fallbackVendors[idx], ...updates };
+      res.json({
+        success: true,
+        message: "সেলার তথ্য সফলভাবে আপডেট হয়েছে!",
+        data: fallbackVendors[idx],
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "সেলার তথ্য আপডেট সম্পন্ন",
+      data: updates,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteVendor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Vendor.findByIdAndDelete(id);
+      } catch (err) {
+        console.warn("MongoDB vendor delete skipped:", err);
+      }
+    }
+
+    fallbackVendors = fallbackVendors.filter((v) => v._id !== id && v.slug !== id);
+
+    res.json({
+      success: true,
+      message: "সেলার সফলভাবে মুছে ফেলা হয়েছে!",
+      id,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
