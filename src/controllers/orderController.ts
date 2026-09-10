@@ -6,7 +6,7 @@ import { PaymentService } from "../services/paymentService";
 const generateInvoiceId = (): string => {
   const timestamp = Date.now().toString().slice(-5);
   const random = Math.floor(100 + Math.random() * 900);
-  return `SG-${timestamp}${random}`;
+  return `OR-${timestamp}${random}`;
 };
 
 export const createOrder = async (req: Request, res: Response): Promise<void> => {

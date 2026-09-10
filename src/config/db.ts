@@ -10,7 +10,7 @@ export const connectDB = async (): Promise<void> => {
     return;
   }
 
-  const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/shopgenie";
+  const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/oldrank";
 
   try {
     const conn = await mongoose.connect(mongoUri, {
