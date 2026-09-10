@@ -22,7 +22,7 @@ export class PaymentService {
         code: "bkash_manual",
         name: "Manual bKash (Personal)",
         accountType: "Personal",
-        walletNumber: process.env.MANUAL_BKASH_NUMBER || "01849832178",
+        walletNumber: process.env.MANUAL_BKASH_NUMBER || "01956016119",
         instructions:
           "বিকাশ অ্যাপ অথবা *247# ডায়াল করে 'Send Money' অপশনে গিয়ে নিচের পার্সোনাল নম্বরে টাকা পাঠান। টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) ও যে নম্বর থেকে পাঠিয়েছেন তা নিচে লিখুন।",
       },
@@ -30,7 +30,7 @@ export class PaymentService {
         code: "nagad_manual",
         name: "Manual Nagad (Personal)",
         accountType: "Personal",
-        walletNumber: process.env.MANUAL_NAGAD_NUMBER || "01849832178",
+        walletNumber: process.env.MANUAL_NAGAD_NUMBER || "01956016119",
         instructions:
           "নগদ অ্যাপ অথবা *167# ডায়াল করে 'Send Money' অপশনে গিয়ে নিচের পার্সোনাল নম্বরে টাকা পাঠান। টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) ও প্রেরক নম্বর নিচে লিখুন।",
       },
@@ -38,7 +38,7 @@ export class PaymentService {
         code: "rocket_manual",
         name: "Manual Rocket (Personal)",
         accountType: "Personal",
-        walletNumber: process.env.MANUAL_ROCKET_NUMBER || "01849832178",
+        walletNumber: process.env.MANUAL_ROCKET_NUMBER || "01956016119",
         instructions:
           "রকেট অ্যাপ অথবা *322# ডায়াল করে 'Send Money' অপশনে গিয়ে নিচের পার্সোনাল নম্বরে টাকা পাঠান। টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) নিচে দিন।",
       },
