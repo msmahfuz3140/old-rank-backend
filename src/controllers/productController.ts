@@ -501,6 +501,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       mainImage: data.mainImage || "/images/old-rank-banner.jpg",
       galleryImages: data.galleryImages || [data.mainImage || "/images/old-rank-banner.jpg"],
       basePrice: Number(data.basePrice) || 990,
+      costPrice: Number(data.costPrice) || 0,
       oldPrice: Number(data.oldPrice) || (Number(data.basePrice) ? Math.round(Number(data.basePrice) * 1.25) : 1250),
       discountPercentage: data.discountPercentage || (data.oldPrice && data.basePrice ? Math.round(((Number(data.oldPrice) - Number(data.basePrice)) / Number(data.oldPrice)) * 100) : 20),
       sku: data.sku || `OR-${Date.now().toString().slice(-4)}`,

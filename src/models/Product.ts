@@ -26,6 +26,7 @@ export interface IProduct extends Document {
   mainImage: string;
   galleryImages: string[];
   basePrice: number;
+  costPrice?: number;
   oldPrice?: number;
   discountPercentage?: number;
   sku: string;
@@ -73,6 +74,7 @@ const ProductSchema = new Schema<IProduct>(
     mainImage: { type: String, required: true },
     galleryImages: [{ type: String }],
     basePrice: { type: Number, required: true },
+    costPrice: { type: Number, default: 0 },
     oldPrice: { type: Number, default: 0 },
     discountPercentage: { type: Number, default: 0 },
     sku: { type: String, default: "" },

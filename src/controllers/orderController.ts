@@ -56,6 +56,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       image: i.image || "",
       variantInfo: i.variantInfo || "",
       price: Number(i.price) || 0,
+      costPrice: Number(i.costPrice) || 0,
       quantity: Number(i.quantity) || 1,
       total: Number(i.total) || (Number(i.price) || 0) * (Number(i.quantity) || 1),
     }));
@@ -204,175 +205,8 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 
 import mongoose from "mongoose";
 
-// In-memory orders store for resilient offline/development mode
-const memoryOrders: any[] = [
-  {
-    _id: "ord_1",
-    invoiceId: "SG-98241",
-    customer: {
-      name: "আব্দুল করিম",
-      phone: "01812345678",
-      address: "বাড়ি ১২, রোড ৪, ধানমন্ডি",
-      division: "Dhaka",
-      district: "Dhaka City",
-      note: "অফিস টাইমে ডেলিভারি করবেন প্লিজ",
-    },
-    items: [
-      {
-        productId: "p1",
-        name: "Intel Core i5 Desktop Computer Full Setup Gaming PC",
-        price: 42500,
-        quantity: 1,
-        variantInfo: "16GB RAM / 512GB SSD",
-      },
-    ],
-    subtotal: 42500,
-    deliveryCharge: 60,
-    discount: 0,
-    grandTotal: 42560,
-    paymentMethod: "bkash_manual",
-    paymentStatus: "pending_verification",
-    manualPaymentDetails: {
-      trxId: "BK78945612X",
-      senderNumber: "01812345678",
-    },
-    status: "pending",
-    timeline: [
-      { status: "Order Placed", timestamp: new Date(Date.now() - 1000 * 60 * 35), note: "গ্রাহক bKash Manual দিয়ে অর্ডার করেছেন।" },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-  },
-  {
-    _id: "ord_2",
-    invoiceId: "SG-98210",
-    customer: {
-      name: "তানভীর আহমেদ",
-      phone: "01799887766",
-      address: "জিইসি মোড়, চট্টগ্রাম",
-      division: "Chittagong",
-      district: "Chittagong City",
-    },
-    items: [
-      {
-        productId: "p2",
-        name: "Ultra Modern Smartwatch Series 9 with AMOLED Display",
-        price: 2850,
-        quantity: 1,
-        variantInfo: "Midnight Black - 45mm",
-      },
-    ],
-    subtotal: 2850,
-    deliveryCharge: 120,
-    discount: 0,
-    grandTotal: 2970,
-    paymentMethod: "nagad_manual",
-    paymentStatus: "paid",
-    manualPaymentDetails: {
-      trxId: "NG98765432Y",
-      senderNumber: "01799887766",
-    },
-    status: "confirmed",
-    timeline: [
-      { status: "Order Placed", timestamp: new Date(Date.now() - 1000 * 60 * 90), note: "গ্রাহক Nagad দিয়ে অর্ডার করেছেন।" },
-      { status: "Confirmed", timestamp: new Date(Date.now() - 1000 * 60 * 60), note: "পেমেন্ট ভেরিফাই করে কনফার্ম করা হয়েছে।" },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-  },
-  {
-    _id: "ord_3",
-    invoiceId: "SG-98188",
-    customer: {
-      name: "ফারহানা সুলতানা",
-      phone: "01911223344",
-      address: "রোড ১১, বনানী, ঢাকা",
-      division: "Dhaka",
-      district: "Dhaka City",
-    },
-    items: [
-      {
-        productId: "p3",
-        name: "Premium Oxford Cotton Long Sleeve Casual Shirt",
-        price: 1250,
-        quantity: 1,
-        variantInfo: "Navy Blue - L",
-      },
-    ],
-    subtotal: 1250,
-    deliveryCharge: 60,
-    discount: 0,
-    grandTotal: 1310,
-    paymentMethod: "cod",
-    paymentStatus: "pending",
-    status: "shipped",
-    timeline: [
-      { status: "Order Placed", timestamp: new Date(Date.now() - 1000 * 60 * 200), note: "অর্ডার সাবমিট হয়েছে।" },
-      { status: "Shipped", timestamp: new Date(Date.now() - 1000 * 60 * 80), note: "রেডেক্স কুরিয়ারে পার্সেল বুক করা হয়েছে।" },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
-  },
-  {
-    _id: "ord_4",
-    invoiceId: "SG-98150",
-    customer: {
-      name: "মো: রাকিবুল ইসলাম",
-      phone: "01688776655",
-      address: "জিন্দাবাজার, সিলেট সদর",
-      division: "Sylhet",
-      district: "Sylhet City",
-    },
-    items: [
-      {
-        productId: "p4",
-        name: "Comfort Narrow Fit Stretchable Chino Pant for Men",
-        price: 1450,
-        quantity: 1,
-        variantInfo: "Jet Black - 32",
-      },
-    ],
-    subtotal: 1450,
-    deliveryCharge: 120,
-    discount: 0,
-    grandTotal: 1570,
-    paymentMethod: "cod",
-    paymentStatus: "paid",
-    status: "delivered",
-    timeline: [
-      { status: "Delivered", timestamp: new Date(Date.now() - 1000 * 60 * 300), note: "গ্রাহকের নিকট সফলভাবে পৌঁছে দেয়া হয়েছে।" },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 500).toISOString(),
-  },
-  {
-    _id: "ord_5",
-    invoiceId: "SG-98112",
-    customer: {
-      name: "নুসরাত জাহান",
-      phone: "01555667788",
-      address: "সেক্টর ৭, উত্তরা, ঢাকা",
-      division: "Dhaka",
-      district: "Dhaka City",
-    },
-    items: [
-      {
-        productId: "p5",
-        name: "Canva Pro Lifetime Owner Access",
-        price: 499,
-        quantity: 1,
-        variantInfo: "Single User - 1 Year",
-      },
-    ],
-    subtotal: 499,
-    deliveryCharge: 0,
-    discount: 0,
-    grandTotal: 499,
-    paymentMethod: "bkash_auto",
-    paymentStatus: "paid",
-    status: "delivered",
-    timeline: [
-      { status: "Delivered", timestamp: new Date(Date.now() - 1000 * 60 * 800), note: "ডিজিটাল লাইসেন্স কী ইমেইলে পাঠিয়ে দেওয়া হয়েছে।" },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 800).toISOString(),
-  },
-];
+// In-memory orders store for clean production
+const memoryOrders: any[] = [];
 
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -459,19 +293,19 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
         pendingOrders,
         confirmedOrders,
         deliveredOrders,
-        incompleteCount: 4,
+        incompleteCount: 0,
       },
     });
   } catch (error: any) {
     res.json({
       success: true,
       data: {
-        totalRevenue: 48909,
-        totalOrders: 5,
-        pendingOrders: 1,
-        confirmedOrders: 1,
-        deliveredOrders: 2,
-        incompleteCount: 4,
+        totalRevenue: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        confirmedOrders: 0,
+        deliveredOrders: 0,
+        incompleteCount: 0,
       },
     });
   }
