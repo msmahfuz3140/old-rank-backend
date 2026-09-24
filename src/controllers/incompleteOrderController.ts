@@ -2,68 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { IncompleteOrder } from "../models/IncompleteOrder";
 
-const memoryIncompleteOrders: any[] = [
-  {
-    _id: "inc_1",
-    phone: "01844998811",
-    name: "শাকিল হোসেন",
-    address: "মিরপুর ১০, ঢাকা",
-    division: "Dhaka",
-    district: "Dhaka City",
-    items: [
-      {
-        name: "Intel Core i5 Desktop Computer Full Setup Gaming PC",
-        price: 42500,
-        quantity: 1,
-      },
-    ],
-    subtotal: 42500,
-    deliveryCharge: 60,
-    isConverted: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    updatedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-  },
-  {
-    _id: "inc_2",
-    phone: "01733221100",
-    name: "সাদিয়া আক্তার",
-    address: "নাসিরাবাদ, চট্টগ্রাম",
-    division: "Chittagong",
-    district: "Chittagong City",
-    items: [
-      {
-        name: "Ultra Modern Smartwatch Series 9 with AMOLED Display",
-        price: 2850,
-        quantity: 1,
-      },
-    ],
-    subtotal: 2850,
-    deliveryCharge: 120,
-    isConverted: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 28).toISOString(),
-    updatedAt: new Date(Date.now() - 1000 * 60 * 28).toISOString(),
-  },
-  {
-    _id: "inc_3",
-    phone: "01955443322",
-    name: "মেহেদী হাসান",
-    address: "বোয়ালিয়া, রাজশাহী",
-    division: "Rajshahi",
-    district: "Rajshahi City",
-    items: [
-      {
-        name: "Premium Oxford Cotton Long Sleeve Casual Shirt",
-        price: 1250,
-        quantity: 2,
-      },
-    ],
-    subtotal: 2500,
-    deliveryCharge: 120,
-    isConverted: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-    updatedAt: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-  },
-];
+const memoryIncompleteOrders: any[] = [];
 
 export const saveIncompleteOrder = async (req: Request, res: Response): Promise<void> => {
   try {
