@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { Order } from "../models/Order";
+import { Product } from "../models/Product";
 import { IncompleteOrder } from "../models/IncompleteOrder";
 import { PaymentService } from "../services/paymentService";
 
@@ -49,17 +50,39 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Sanitize items
-    const sanitizedItems = items.map((i: any) => ({
-      productId: i.productId || "p1",
-      name: i.name || "Product",
-      image: i.image || "",
-      variantInfo: i.variantInfo || "",
-      price: Number(i.price) || 0,
-      costPrice: Number(i.costPrice) || 0,
-      quantity: Number(i.quantity) || 1,
-      total: Number(i.total) || (Number(i.price) || 0) * (Number(i.quantity) || 1),
-    }));
+    // Sanitize items and resolve costPrice for accurate profit/loss accounting
+    const sanitizedItems = await Promise.all(
+      items.map(async (i: any) => {
+        let itemCost = Number(i.costPrice) || 0;
+        if (itemCost <= 0 && mongoose.connection.readyState === 1) {
+          try {
+            const prod = await Product.findOne({
+              $or: [
+                { _id: mongoose.isValidObjectId(i.productId) ? i.productId : null },
+                { name: i.name },
+              ],
+            });
+            if (prod?.costPrice) {
+              itemCost = Number(prod.costPrice);
+            }
+          } catch {}
+        }
+        if (itemCost <= 0 && Number(i.price) > 0) {
+          itemCost = Math.round(Number(i.price) * 0.6);
+        }
+
+        return {
+          productId: i.productId || "p1",
+          name: i.name || "Product",
+          image: i.image || "",
+          variantInfo: i.variantInfo || "",
+          price: Number(i.price) || 0,
+          costPrice: itemCost,
+          quantity: Number(i.quantity) || 1,
+          total: Number(i.total) || (Number(i.price) || 0) * (Number(i.quantity) || 1),
+        };
+      })
+    );
 
     const invoiceId = generateInvoiceId();
 
