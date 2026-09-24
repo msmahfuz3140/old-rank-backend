@@ -2,9 +2,6 @@ import mongoose from "mongoose";
 
 let isConnected = false;
 
-// Disable Mongoose query buffering so operations return instantly instead of hanging for 10 seconds
-mongoose.set("bufferCommands", false);
-
 export const connectDB = async (): Promise<void> => {
   if (isConnected) {
     return;
@@ -14,16 +11,15 @@ export const connectDB = async (): Promise<void> => {
 
   try {
     const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 1500,
+      serverSelectionTimeoutMS: 10000,
     });
     isConnected = true;
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
     
     // Auto-seed initial store products and categories if MongoDB is fresh
-    import("../services/seedService").then(({ seedIfEmpty }) => {
-      seedIfEmpty();
-    }).catch(() => {});
+    const { seedIfEmpty } = await import("../services/seedService");
+    await seedIfEmpty();
   } catch (error: any) {
-    console.warn(`⚠️ MongoDB offline or unreachable (${error.message}). App running in high-speed in-memory mode.`);
+    console.warn(`⚠️ MongoDB connection issue (${error.message}). Running with fallback.`);
   }
 };

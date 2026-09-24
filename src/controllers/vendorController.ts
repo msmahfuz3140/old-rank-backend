@@ -102,7 +102,7 @@ export const getVendors = async (_req: Request, res: Response): Promise<void> =>
   try {
     if (mongoose.connection.readyState === 1) {
       try {
-        const vendors = await Vendor.find().sort({ rating: -1, reviewCount: -1 }).maxTimeMS(1000);
+        const vendors = await Vendor.find().sort({ rating: -1, reviewCount: -1 }).maxTimeMS(5000);
         if (vendors && vendors.length > 0) {
           res.json({ success: true, data: vendors });
           return;
@@ -124,7 +124,7 @@ export const getVendorBySlug = async (req: Request, res: Response): Promise<void
 
     if (mongoose.connection.readyState === 1) {
       try {
-        const dbVendor = await Vendor.findOne({ slug }).maxTimeMS(1000);
+        const dbVendor = await Vendor.findOne({ slug }).maxTimeMS(5000);
         if (dbVendor) vendor = dbVendor;
       } catch {
         // use fallback

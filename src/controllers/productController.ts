@@ -302,7 +302,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       try {
         const filter: any = { isActive: true };
         if (isHotDeal === "true") filter.isHotDeal = true;
-        const products = await Product.find(filter).sort({ createdAt: -1 }).limit(30).maxTimeMS(800);
+        const products = await Product.find(filter).sort({ createdAt: -1 }).limit(30).maxTimeMS(5000);
         if (products && products.length > 0) {
           res.json({ success: true, data: products });
           return;
@@ -346,7 +346,7 @@ export const getProductBySlug = async (req: Request, res: Response): Promise<voi
 
     if (mongoose.connection.readyState === 1) {
       try {
-        const dbProduct = await Product.findOne({ slug }).maxTimeMS(800);
+        const dbProduct = await Product.findOne({ slug }).maxTimeMS(5000);
         if (dbProduct) product = dbProduct;
       } catch {
         // use fallback
@@ -383,7 +383,7 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
   try {
     if (mongoose.connection.readyState === 1) {
       try {
-        const dbCats = await Category.find({ isActive: true }).maxTimeMS(800);
+        const dbCats = await Category.find({ isActive: true }).maxTimeMS(5000);
         if (dbCats && dbCats.length > 0) {
           res.json({ success: true, data: dbCats });
           return;

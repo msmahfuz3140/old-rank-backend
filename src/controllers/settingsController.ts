@@ -15,7 +15,7 @@ export const getHotDealSettings = async (_req: Request, res: Response): Promise<
   try {
     if (mongoose.connection.readyState === 1) {
       try {
-        const doc = await Settings.findOne({ key: "site_settings" }).maxTimeMS(800);
+        const doc = await Settings.findOne({ key: "site_settings" }).maxTimeMS(5000);
         if (doc && doc.hotDeal) {
           cachedSettings = {
             isOfferActive: doc.hotDeal.isOfferActive !== undefined ? doc.hotDeal.isOfferActive : cachedSettings.isOfferActive,
