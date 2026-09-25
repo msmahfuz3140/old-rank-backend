@@ -1,37 +1,59 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { DeliveryZone } from "../models/DeliveryZone";
-
-const fallbackDeliveryZones = [
-  { division: "Dhaka", district: "Dhaka City", deliveryCharge: 60, estimatedDelivery: "24-48 Hours", isActive: true },
-  { division: "Dhaka", district: "Gazipur", deliveryCharge: 100, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Dhaka", district: "Narayanganj", deliveryCharge: 100, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Chattogram", district: "Chattogram City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Chattogram", district: "Cox's Bazar", deliveryCharge: 130, estimatedDelivery: "3-4 Days", isActive: true },
-  { division: "Sylhet", district: "Sylhet City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Rajshahi", district: "Rajshahi City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Khulna", district: "Khulna City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Barishal", district: "Barishal City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Rangpur", district: "Rangpur City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-  { division: "Mymensingh", district: "Mymensingh City", deliveryCharge: 120, estimatedDelivery: "48-72 Hours", isActive: true },
-];
+import { ALL_64_DISTRICTS } from "../constants/districts";
 
 export const getDeliveryZones = async (_req: Request, res: Response): Promise<void> => {
   try {
-    let zones = fallbackDeliveryZones;
+    let zones = ALL_64_DISTRICTS.map((d) => ({
+      division: d.division,
+      divisionBn: d.divisionBn,
+      district: d.displayName,
+      districtKey: d.district,
+      districtBn: d.districtBn,
+      deliveryCharge: d.deliveryCharge,
+      estimatedDelivery: d.estimatedDelivery,
+      isActive: true,
+    }));
+
     if (mongoose.connection.readyState === 1) {
       try {
-        const dbZones = await DeliveryZone.find({ isActive: true }).sort({ division: 1, district: 1 }).maxTimeMS(2000);
-        if (dbZones && dbZones.length > 0) {
+        const validNames = ALL_64_DISTRICTS.map((d) => d.displayName);
+        // Clean up legacy generic entries if any exist
+        await DeliveryZone.deleteMany({ district: { $nin: validNames } });
+
+        const count = await DeliveryZone.countDocuments();
+        // If not seeded with all 64 districts yet, bulk upsert them
+        if (count < 64) {
+          const bulkOps = ALL_64_DISTRICTS.map((d) => ({
+            updateOne: {
+              filter: { district: d.displayName },
+              update: {
+                $set: {
+                  division: d.division,
+                  district: d.displayName,
+                  deliveryCharge: d.deliveryCharge,
+                  estimatedDelivery: d.estimatedDelivery,
+                  isActive: true,
+                },
+              },
+              upsert: true,
+            },
+          }));
+          await DeliveryZone.bulkWrite(bulkOps);
+        }
+
+        const dbZones = await DeliveryZone.find({ isActive: true }).sort({ division: 1, district: 1 }).maxTimeMS(2500);
+        if (dbZones && dbZones.length === 64) {
           zones = dbZones as any;
         }
       } catch {
-        // use fallback
+        // Fallback to in-memory ALL_64_DISTRICTS
       }
     }
 
     // Group districts by division
-    const grouped = zones.reduce((acc: Record<string, any[]>, zone) => {
+    const grouped = zones.reduce((acc: Record<string, any[]>, zone: any) => {
       if (!acc[zone.division]) {
         acc[zone.division] = [];
       }
@@ -45,6 +67,7 @@ export const getDeliveryZones = async (_req: Request, res: Response): Promise<vo
 
     res.json({
       success: true,
+      totalCount: zones.length,
       data: {
         raw: zones,
         byDivision: grouped,
