@@ -275,25 +275,59 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
       const totalOrders = await Order.countDocuments();
       const pendingOrders = await Order.countDocuments({ status: "pending" });
       const confirmedOrders = await Order.countDocuments({ status: "confirmed" });
+      const processingOrders = await Order.countDocuments({ status: "processing" });
+      const shippedOrders = await Order.countDocuments({ status: "shipped" });
       const deliveredOrders = await Order.countDocuments({ status: "delivered" });
+      const cancelledOrders = await Order.countDocuments({ status: "cancelled" });
       const incompleteCount = await IncompleteOrder.countDocuments({ isConverted: false });
+      const activeProductsCount = await Product.countDocuments({ isActive: true });
 
-      // Only confirmed/processing/shipped/delivered orders are added to revenue (pending and cancelled are excluded)
-      const revenueAggregate = await Order.aggregate([
-        { $match: { status: { $in: ["confirmed", "processing", "shipped", "delivered"] } } },
-        { $group: { _id: null, total: { $sum: "$grandTotal" } } },
-      ]);
-      const totalRevenue = revenueAggregate.length > 0 ? revenueAggregate[0].total : 0;
+      const allOrders = await Order.find({ status: { $ne: "cancelled" } });
+      let totalRevenue = 0;
+      let totalCost = 0;
+      let pendingRevenue = 0;
+      let confirmedRevenue = 0;
+      let confirmedCost = 0;
+
+      for (const ord of allOrders) {
+        const amt = Number(ord.grandTotal) || Number(ord.subtotal) || 0;
+        let cogs = 0;
+        if (ord.items && Array.isArray(ord.items)) {
+          for (const item of ord.items) {
+            cogs += (Number(item.costPrice) || 0) * (Number(item.quantity) || 1);
+          }
+        }
+
+        totalRevenue += amt;
+        totalCost += cogs;
+
+        if (ord.status === "pending") {
+          pendingRevenue += amt;
+        } else {
+          confirmedRevenue += amt;
+          confirmedCost += cogs;
+        }
+      }
 
       res.json({
         success: true,
         data: {
           totalRevenue,
+          totalSales: totalRevenue,
+          totalCost,
+          netProfit: totalRevenue - totalCost,
+          pendingRevenue,
+          confirmedRevenue,
+          confirmedCost,
           totalOrders,
           pendingOrders,
           confirmedOrders,
+          processingOrders,
+          shippedOrders,
           deliveredOrders,
+          cancelledOrders,
           incompleteCount,
+          activeProductsCount,
         },
       });
       return;
@@ -303,20 +337,26 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
     const pendingOrders = memoryOrders.filter((o) => o.status === "pending").length;
     const confirmedOrders = memoryOrders.filter((o) => o.status === "confirmed").length;
     const deliveredOrders = memoryOrders.filter((o) => o.status === "delivered").length;
-    // Total revenue only sums orders that have been confirmed by admin (not pending, not cancelled)
-    const totalRevenue = memoryOrders
-      .filter((o) => ["confirmed", "processing", "shipped", "delivered"].includes(o.status))
-      .reduce((sum, o) => sum + (Number(o.grandTotal) || 0), 0);
+    const liveOrders = memoryOrders.filter((o) => o.status !== "cancelled");
+    const totalRevenue = liveOrders.reduce((sum, o) => sum + (Number(o.grandTotal) || 0), 0);
+    const totalCost = liveOrders.reduce((sum, o) => {
+      const c = (o.items || []).reduce((isum: number, item: any) => isum + (Number(item.costPrice) || 0) * (Number(item.quantity) || 1), 0);
+      return sum + c;
+    }, 0);
 
     res.json({
       success: true,
       data: {
         totalRevenue,
+        totalSales: totalRevenue,
+        totalCost,
+        netProfit: totalRevenue - totalCost,
         totalOrders,
         pendingOrders,
         confirmedOrders,
         deliveredOrders,
         incompleteCount: 0,
+        activeProductsCount: 8,
       },
     });
   } catch (error: any) {
@@ -324,11 +364,15 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
       success: true,
       data: {
         totalRevenue: 0,
+        totalSales: 0,
+        totalCost: 0,
+        netProfit: 0,
         totalOrders: 0,
         pendingOrders: 0,
         confirmedOrders: 0,
         deliveredOrders: 0,
         incompleteCount: 0,
+        activeProductsCount: 0,
       },
     });
   }
