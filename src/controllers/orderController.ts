@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import { Order } from "../models/Order";
 import { Product } from "../models/Product";
 import { IncompleteOrder } from "../models/IncompleteOrder";
@@ -95,17 +96,14 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     );
 
     let paymentStatus: "pending" | "paid" | "pending_verification" = "pending";
-    let orderStatus: "pending" | "confirmed" | "processing" | "shipped" | "delivered" = "pending";
+    const orderStatus: "pending" = "pending";
 
     if (["bkash_manual", "nagad_manual", "rocket_manual"].includes(paymentMethod)) {
       paymentStatus = "pending_verification";
-      orderStatus = "pending";
     } else if (["bkash_auto", "nagad_auto", "card_auto"].includes(paymentMethod)) {
       paymentStatus = "paid";
-      orderStatus = "confirmed";
     } else {
       paymentStatus = "pending";
-      orderStatus = "pending";
     }
 
     const newOrder = new Order({
@@ -226,8 +224,6 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-import mongoose from "mongoose";
-
 // In-memory orders store for clean production
 const memoryOrders: any[] = [];
 
@@ -282,8 +278,9 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
       const deliveredOrders = await Order.countDocuments({ status: "delivered" });
       const incompleteCount = await IncompleteOrder.countDocuments({ isConverted: false });
 
+      // Only confirmed/processing/shipped/delivered orders are added to revenue (pending and cancelled are excluded)
       const revenueAggregate = await Order.aggregate([
-        { $match: { status: { $ne: "cancelled" } } },
+        { $match: { status: { $in: ["confirmed", "processing", "shipped", "delivered"] } } },
         { $group: { _id: null, total: { $sum: "$grandTotal" } } },
       ]);
       const totalRevenue = revenueAggregate.length > 0 ? revenueAggregate[0].total : 0;
@@ -306,7 +303,10 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
     const pendingOrders = memoryOrders.filter((o) => o.status === "pending").length;
     const confirmedOrders = memoryOrders.filter((o) => o.status === "confirmed").length;
     const deliveredOrders = memoryOrders.filter((o) => o.status === "delivered").length;
-    const totalRevenue = memoryOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+    // Total revenue only sums orders that have been confirmed by admin (not pending, not cancelled)
+    const totalRevenue = memoryOrders
+      .filter((o) => ["confirmed", "processing", "shipped", "delivered"].includes(o.status))
+      .reduce((sum, o) => sum + (Number(o.grandTotal) || 0), 0);
 
     res.json({
       success: true,
