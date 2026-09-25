@@ -155,23 +155,27 @@ export const seedIfEmpty = async (): Promise<void> => {
     );
 
     // 3. Delivery Zones
+    await DeliveryZone.deleteMany({});
     await DeliveryZone.create([
-      { name: "ঢাকা সিটির ভেতরে (Inside Dhaka)", slug: "dhaka-inside", charge: 60, estimatedDays: "24-48 Hours", isActive: true },
-      { name: "ঢাকা সিটির আশেপাশে (Sub-Dhaka / Gazipur / Narayanganj)", slug: "dhaka-sub", charge: 100, estimatedDays: "2-3 Days", isActive: true },
-      { name: "সারা বাংলাদেশ (Outside Dhaka)", slug: "all-bangladesh", charge: 120, estimatedDays: "3-5 Days", isActive: true },
+      { division: "Dhaka", district: "ঢাকা সিটি (Inside Dhaka)", deliveryCharge: 60, estimatedDelivery: "24-48 Hours", isActive: true },
+      { division: "Dhaka", district: "ঢাকা সাব-এরিয়া (Sub-Dhaka / Gazipur / Narayanganj)", deliveryCharge: 100, estimatedDelivery: "2-3 Days", isActive: true },
+      { division: "All", district: "সারা বাংলাদেশ (Outside Dhaka)", deliveryCharge: 120, estimatedDelivery: "3-5 Days", isActive: true },
     ]);
 
     // 4. Coupon
-    await Coupon.create({
-      code: "SAVE10",
-      discountType: "percentage",
-      discountValue: 10,
-      minPurchase: 1000,
-      maxDiscount: 500,
-      isActive: true,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 365 * 24 * 3600 * 1000),
-    });
+    await Coupon.findOneAndUpdate(
+      { code: "SAVE10" },
+      {
+        code: "SAVE10",
+        discountType: "percentage",
+        discountAmount: 10,
+        minSpend: 1000,
+        maxDiscount: 500,
+        isActive: true,
+        expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+      },
+      { upsert: true, new: true }
+    );
 
     // 5. Products (8 Exclusive Jewelry Items with costPrice)
     const productsData = [

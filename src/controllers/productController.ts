@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Product } from "../models/Product";
 import { Category } from "../models/Category";
+import { Vendor } from "../models/Vendor";
 
 const fallbackCategories = [
   {
@@ -294,31 +295,155 @@ let fallbackProducts: any[] = [
   },
 ];
 
+// Helper to resolve category ID from input
+async function resolveCategoryId(categoryInput: any): Promise<mongoose.Types.ObjectId> {
+  if (categoryInput) {
+    if (typeof categoryInput === "string") {
+      if (mongoose.isValidObjectId(categoryInput)) {
+        const found = await Category.findById(categoryInput);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+      const foundBySlugOrName = await Category.findOne({
+        $or: [{ slug: categoryInput }, { name: categoryInput }, { slug: categoryInput.toLowerCase() }],
+      });
+      if (foundBySlugOrName) return foundBySlugOrName._id as mongoose.Types.ObjectId;
+    } else if (typeof categoryInput === "object") {
+      if (categoryInput._id && mongoose.isValidObjectId(categoryInput._id)) {
+        return new mongoose.Types.ObjectId(categoryInput._id);
+      }
+      if (categoryInput.slug || categoryInput.name) {
+        const found = await Category.findOne({
+          $or: [
+            ...(categoryInput.slug ? [{ slug: categoryInput.slug }] : []),
+            ...(categoryInput.name ? [{ name: categoryInput.name }] : []),
+          ],
+        });
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+    }
+  }
+
+  let defaultCat = await Category.findOne({ slug: "jewelry" });
+  if (!defaultCat) {
+    defaultCat = await Category.findOne();
+  }
+  if (!defaultCat) {
+    defaultCat = await Category.create({
+      name: "জুয়েলারি ও অলংকার",
+      slug: "jewelry",
+      level: 1,
+      isActive: true,
+    });
+  }
+  return defaultCat._id as mongoose.Types.ObjectId;
+}
+
+// Helper to resolve vendor ID from input
+async function resolveVendorId(vendorInput: any): Promise<mongoose.Types.ObjectId> {
+  if (vendorInput) {
+    if (typeof vendorInput === "string") {
+      if (mongoose.isValidObjectId(vendorInput)) {
+        const found = await Vendor.findById(vendorInput);
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+      const found = await Vendor.findOne({
+        $or: [{ slug: vendorInput }, { shopName: vendorInput }],
+      });
+      if (found) return found._id as mongoose.Types.ObjectId;
+    } else if (typeof vendorInput === "object") {
+      if (vendorInput._id && mongoose.isValidObjectId(vendorInput._id)) {
+        return new mongoose.Types.ObjectId(vendorInput._id);
+      }
+      if (vendorInput.slug || vendorInput.shopName) {
+        const found = await Vendor.findOne({
+          $or: [
+            ...(vendorInput.slug ? [{ slug: vendorInput.slug }] : []),
+            ...(vendorInput.shopName ? [{ shopName: vendorInput.shopName }] : []),
+          ],
+        });
+        if (found) return found._id as mongoose.Types.ObjectId;
+      }
+    }
+  }
+
+  let defaultVendor = await Vendor.findOne({ slug: "old-rank" });
+  if (!defaultVendor) {
+    defaultVendor = await Vendor.findOne();
+  }
+  if (!defaultVendor) {
+    defaultVendor = await Vendor.create({
+      shopName: "Old Rank Jewelry Official Store",
+      slug: "old-rank",
+      isVerified: true,
+      rating: 5.0,
+    });
+  }
+  return defaultVendor._id as mongoose.Types.ObjectId;
+}
+
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const { category, search, isHotDeal } = req.query;
 
     if (mongoose.connection.readyState === 1) {
-      try {
-        const filter: any = { isActive: true };
-        if (isHotDeal === "true") filter.isHotDeal = true;
-        const products = await Product.find(filter).sort({ createdAt: -1 }).limit(30).maxTimeMS(5000);
-        if (products && products.length > 0) {
-          res.json({ success: true, data: products });
-          return;
+      const filter: any = { isActive: true };
+
+      if (category && category !== "all") {
+        const catDoc = await Category.findOne({
+          $or: [{ slug: String(category).toLowerCase() }, { name: String(category) }],
+        });
+        if (catDoc) {
+          filter.category = catDoc._id;
+        } else if (mongoose.isValidObjectId(category)) {
+          filter.category = category;
         }
-      } catch {
-        // use fallback
+      }
+
+      if (search) {
+        const q = String(search).trim();
+        filter.$or = [
+          { name: { $regex: q, $options: "i" } },
+          { tags: { $regex: q, $options: "i" } },
+          { shortDescription: { $regex: q, $options: "i" } },
+        ];
+      }
+
+      if (isHotDeal === "true") {
+        filter.isHotDeal = true;
+      }
+
+      const products = await Product.find(filter)
+        .populate("category", "name slug icon image")
+        .populate("vendor", "shopName slug logo rating isVerified")
+        .sort({ createdAt: -1 })
+        .limit(100);
+
+      if (products && products.length > 0) {
+        res.json({
+          success: true,
+          data: products,
+          pagination: {
+            total: products.length,
+            page: 1,
+            limit: products.length,
+            pages: 1,
+          },
+        });
+        return;
       }
     }
 
     let filtered = [...fallbackProducts];
     if (category && category !== "all") {
-      filtered = filtered.filter((p) => p.category.slug === category);
+      filtered = filtered.filter((p) => p.category?.slug === category || p.category === category);
     }
     if (search) {
       const q = String(search).toLowerCase();
-      filtered = filtered.filter((p) => p.name.toLowerCase().includes(q) || (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q))));
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q)))
+      );
     }
     if (isHotDeal === "true") {
       filtered = filtered.filter((p) => p.isHotDeal);
@@ -342,17 +467,30 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 export const getProductBySlug = async (req: Request, res: Response): Promise<void> => {
   try {
     const { slug } = req.params;
-    let product: any = fallbackProducts.find((p) => p.slug === slug) || fallbackProducts[0];
 
     if (mongoose.connection.readyState === 1) {
-      try {
-        const dbProduct = await Product.findOne({ slug }).maxTimeMS(5000);
-        if (dbProduct) product = dbProduct;
-      } catch {
-        // use fallback
+      const dbProduct = await Product.findOne({ slug })
+        .populate("category", "name slug icon image")
+        .populate("vendor", "shopName slug logo rating isVerified");
+
+      if (dbProduct) {
+        const relatedProducts = await Product.find({ slug: { $ne: slug }, isActive: true })
+          .populate("category", "name slug icon image")
+          .populate("vendor", "shopName slug logo rating isVerified")
+          .limit(4);
+
+        res.json({
+          success: true,
+          data: {
+            product: dbProduct,
+            relatedProducts,
+          },
+        });
+        return;
       }
     }
 
+    const product = fallbackProducts.find((p) => p.slug === slug) || fallbackProducts[0];
     const relatedProducts = fallbackProducts.filter((p) => p.slug !== product.slug).slice(0, 4);
 
     res.json({
@@ -374,22 +512,33 @@ export const getProductBySlug = async (req: Request, res: Response): Promise<voi
 };
 
 export const getQuickView = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
-  const product = fallbackProducts.find((p) => p._id === id) || fallbackProducts[0];
-  res.json({ success: true, data: product });
+  try {
+    const { id } = req.params;
+    if (mongoose.connection.readyState === 1) {
+      const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+      const product = await Product.findOne(query)
+        .populate("category", "name slug icon image")
+        .populate("vendor", "shopName slug logo rating isVerified");
+      if (product) {
+        res.json({ success: true, data: product });
+        return;
+      }
+    }
+
+    const product = fallbackProducts.find((p) => p._id === id || p.slug === id) || fallbackProducts[0];
+    res.json({ success: true, data: product });
+  } catch (err: any) {
+    res.json({ success: true, data: fallbackProducts[0] });
+  }
 };
 
 export const getCategories = async (_req: Request, res: Response): Promise<void> => {
   try {
     if (mongoose.connection.readyState === 1) {
-      try {
-        const dbCats = await Category.find({ isActive: true }).maxTimeMS(5000);
-        if (dbCats && dbCats.length > 0) {
-          res.json({ success: true, data: dbCats });
-          return;
-        }
-      } catch {
-        // use fallback
+      const dbCats = await Category.find({ isActive: true }).sort({ level: 1 }).maxTimeMS(5000);
+      if (dbCats && dbCats.length > 0) {
+        res.json({ success: true, data: dbCats });
+        return;
       }
     }
     res.json({ success: true, data: fallbackCategories });
@@ -401,49 +550,117 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = req.body;
-    const cleanName = data.name || "Untitled Product";
-    const slugBase = (data.slug || cleanName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const generatedSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+    const cleanName = String(data.name || "").trim() || "Untitled Product";
+    let baseSlug = (data.slug || cleanName)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    if (!baseSlug) baseSlug = `product-${Date.now().toString().slice(-4)}`;
 
-    const newProd = {
+    let generatedSlug = baseSlug;
+
+    if (mongoose.connection.readyState === 1) {
+      const categoryId = await resolveCategoryId(data.category);
+      const vendorId = await resolveVendorId(data.vendor);
+
+      const existingSlug = await Product.findOne({ slug: generatedSlug });
+      if (existingSlug) {
+        generatedSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+      }
+
+      const rawTags = data.tags;
+      const parsedTags = Array.isArray(rawTags)
+        ? rawTags
+        : typeof rawTags === "string"
+        ? rawTags.split(",").map((s) => s.trim()).filter(Boolean)
+        : ["jewelry", "old-rank"];
+
+      const newProductDoc = await Product.create({
+        name: cleanName,
+        slug: generatedSlug,
+        shortDescription: data.shortDescription || cleanName,
+        description: data.description || cleanName,
+        category: categoryId,
+        vendor: vendorId,
+        mainImage: data.mainImage || "/images/old-rank-banner.jpg",
+        galleryImages:
+          data.galleryImages && data.galleryImages.length > 0
+            ? data.galleryImages
+            : [data.mainImage || "/images/old-rank-banner.jpg"],
+        basePrice: Number(data.basePrice) || 990,
+        costPrice: Number(data.costPrice) || 0,
+        oldPrice:
+          Number(data.oldPrice) ||
+          (Number(data.basePrice) ? Math.round(Number(data.basePrice) * 1.25) : 1250),
+        discountPercentage:
+          Number(data.discountPercentage) ||
+          (data.oldPrice && data.basePrice
+            ? Math.round(((Number(data.oldPrice) - Number(data.basePrice)) / Number(data.oldPrice)) * 100)
+            : 20),
+        sku: data.sku || `OR-${Date.now().toString().slice(-4)}`,
+        stock: Number(data.stock) !== undefined && !isNaN(Number(data.stock)) ? Number(data.stock) : 50,
+        isHotDeal: Boolean(data.isHotDeal),
+        isFeatured: Boolean(data.isFeatured),
+        isDigital: Boolean(data.isDigital),
+        variants: Array.isArray(data.variants) ? data.variants : [],
+        wholesalePrices: Array.isArray(data.wholesalePrices) ? data.wholesalePrices : [],
+        rating: 5.0,
+        reviewCount: 0,
+        tags: parsedTags,
+        isActive: true,
+      });
+
+      const populatedProduct = await Product.findById(newProductDoc._id)
+        .populate("category", "name slug icon image")
+        .populate("vendor", "shopName slug logo rating isVerified");
+
+      fallbackProducts.unshift(populatedProduct.toObject ? populatedProduct.toObject() : populatedProduct);
+
+      res.status(201).json({
+        success: true,
+        message: "প্রোডাক্ট সফলভাবে MongoDB ডাটাবেজে যুক্ত করা হয়েছে!",
+        data: populatedProduct,
+      });
+      return;
+    }
+
+    // In-memory fallback if DB is temporarily disconnected
+    const fallbackProd = {
       _id: `p_${Date.now()}`,
       name: cleanName,
       slug: generatedSlug,
       shortDescription: data.shortDescription || cleanName,
       description: data.description || cleanName,
-      category: typeof data.category === "object" ? data.category : { _id: "c2", name: data.category || "Men's Fashion", slug: (data.category || "fashion").toLowerCase().replace(/[^a-z0-9]+/g, "-") },
-      vendor: typeof data.vendor === "object" ? data.vendor : { _id: "v_or", shopName: data.vendor || "Old Rank Official", slug: "old-rank", isVerified: true, rating: 5.0 },
+      category:
+        typeof data.category === "object"
+          ? data.category
+          : { _id: "c_jwy", name: "জুয়েলারি ও অলংকার", slug: "jewelry" },
+      vendor:
+        typeof data.vendor === "object"
+          ? data.vendor
+          : { _id: "v_or", shopName: "Old Rank Jewelry", slug: "old-rank", isVerified: true, rating: 5.0 },
       mainImage: data.mainImage || "/images/old-rank-banner.jpg",
       galleryImages: data.galleryImages || [data.mainImage || "/images/old-rank-banner.jpg"],
       basePrice: Number(data.basePrice) || 990,
       costPrice: Number(data.costPrice) || 0,
       oldPrice: Number(data.oldPrice) || (Number(data.basePrice) ? Math.round(Number(data.basePrice) * 1.25) : 1250),
-      discountPercentage: data.discountPercentage || (data.oldPrice && data.basePrice ? Math.round(((Number(data.oldPrice) - Number(data.basePrice)) / Number(data.oldPrice)) * 100) : 20),
+      discountPercentage: Number(data.discountPercentage) || 20,
       sku: data.sku || `OR-${Date.now().toString().slice(-4)}`,
       stock: Number(data.stock) !== undefined ? Number(data.stock) : 50,
       isHotDeal: Boolean(data.isHotDeal),
       isFeatured: Boolean(data.isFeatured),
       rating: 5.0,
-      reviewCount: 1,
-      tags: data.tags || ["old-rank", "clothing", "fashion"],
-      variants: data.variants || [],
+      reviewCount: 0,
+      tags: data.tags || ["jewelry"],
       createdAt: new Date().toISOString(),
     };
 
-    if (mongoose.connection.readyState === 1) {
-      try {
-        await Product.create(newProd);
-      } catch (err) {
-        console.warn("MongoDB product create skipped:", err);
-      }
-    }
-
-    fallbackProducts.unshift(newProd);
+    fallbackProducts.unshift(fallbackProd);
 
     res.status(201).json({
       success: true,
       message: "প্রোডাক্ট সফলভাবে পোস্ট করা হয়েছে!",
-      data: newProd,
+      data: fallbackProd,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -453,13 +670,34 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
 
     if (mongoose.connection.readyState === 1) {
-      try {
-        await Product.findByIdAndUpdate(id, updates);
-      } catch (err) {
-        console.warn("MongoDB product update skipped:", err);
+      if (updates.category) {
+        updates.category = await resolveCategoryId(updates.category);
+      }
+      if (updates.vendor) {
+        updates.vendor = await resolveVendorId(updates.vendor);
+      }
+
+      const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+
+      const updated = await Product.findOneAndUpdate(query, updates, { new: true })
+        .populate("category", "name slug icon image")
+        .populate("vendor", "shopName slug logo rating isVerified");
+
+      if (updated) {
+        const idx = fallbackProducts.findIndex((p) => p._id === id || p.slug === id);
+        if (idx !== -1) {
+          fallbackProducts[idx] = updated.toObject ? updated.toObject() : updated;
+        }
+
+        res.json({
+          success: true,
+          message: "প্রোডাক্ট সফলভাবে MongoDB ডাটাবেজে আপডেট করা হয়েছে!",
+          data: updated,
+        });
+        return;
       }
     }
 
@@ -474,10 +712,9 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    res.json({
-      success: true,
-      message: "প্রোডাক্ট আপডেট সম্পন্ন",
-      data: updates,
+    res.status(404).json({
+      success: false,
+      message: "আপডেটের জন্য প্রোডাক্টটি খুঁজে পাওয়া যায়নি!",
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -489,10 +726,19 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     const { id } = req.params;
 
     if (mongoose.connection.readyState === 1) {
-      try {
-        await Product.findByIdAndDelete(id);
-      } catch (err) {
-        console.warn("MongoDB product delete skipped:", err);
+      const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+      const deleted = await Product.findOneAndDelete(query);
+
+      fallbackProducts = fallbackProducts.filter((p) => p._id !== id && p.slug !== id);
+
+      if (deleted) {
+        res.json({
+          success: true,
+          message: "প্রোডাক্ট সফলভাবে MongoDB ডাটাবেজ থেকে মুছে ফেলা হয়েছে!",
+          id,
+          data: deleted,
+        });
+        return;
       }
     }
 
