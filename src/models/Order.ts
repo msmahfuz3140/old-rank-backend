@@ -45,7 +45,7 @@ export interface IOrder extends Document {
     trxId: string;
     senderNumber?: string;
   };
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
   timeline: IOrderTimeline[];
   couponCode?: string;
   trafficSource?: string;
@@ -121,7 +121,7 @@ const OrderSchema = new Schema<IOrder>(
     },
     status: {
       type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+      enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"],
       default: "pending",
     },
     timeline: [OrderTimelineSchema],
