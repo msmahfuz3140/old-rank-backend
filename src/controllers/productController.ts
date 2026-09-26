@@ -469,9 +469,15 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 export const getProductBySlug = async (req: Request, res: Response): Promise<void> => {
   try {
     const { slug } = req.params;
+    const { includeInactive } = req.query;
 
     if (mongoose.connection.readyState === 1) {
-      const dbProduct = await Product.findOne({ slug })
+      const query: any = { slug };
+      if (includeInactive !== "true") {
+        query.isActive = true;
+      }
+
+      const dbProduct = await Product.findOne(query)
         .populate("category", "name slug icon image")
         .populate("vendor", "shopName slug logo rating isVerified");
 
@@ -490,9 +496,19 @@ export const getProductBySlug = async (req: Request, res: Response): Promise<voi
         });
         return;
       }
+
+      res.status(404).json({
+        success: false,
+        message: "প্রোডাক্টটি খুঁজে পাওয়া যায়নি অথবা বর্তমানে নিষ্ক্রিয় রয়েছে।",
+      });
+      return;
     }
 
-    const product = fallbackProducts.find((p) => p.slug === slug) || fallbackProducts[0];
+    const product = fallbackProducts.find((p) => p.slug === slug);
+    if (!product) {
+      res.status(404).json({ success: false, message: "প্রোডাক্টটি পাওয়া যায়নি" });
+      return;
+    }
     const relatedProducts = fallbackProducts.filter((p) => p.slug !== product.slug).slice(0, 4);
 
     res.json({
@@ -503,34 +519,42 @@ export const getProductBySlug = async (req: Request, res: Response): Promise<voi
       },
     });
   } catch (error: any) {
-    res.json({
-      success: true,
-      data: {
-        product: fallbackProducts[0],
-        relatedProducts: fallbackProducts.slice(1, 5),
-      },
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getQuickView = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const { includeInactive } = req.query;
+
     if (mongoose.connection.readyState === 1) {
-      const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+      const query: any = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+      if (includeInactive !== "true") {
+        query.isActive = true;
+      }
+
       const product = await Product.findOne(query)
         .populate("category", "name slug icon image")
         .populate("vendor", "shopName slug logo rating isVerified");
+
       if (product) {
         res.json({ success: true, data: product });
         return;
       }
+
+      res.status(404).json({ success: false, message: "প্রোডাক্টটি খুঁজে পাওয়া যায়নি।" });
+      return;
     }
 
-    const product = fallbackProducts.find((p) => p._id === id || p.slug === id) || fallbackProducts[0];
+    const product = fallbackProducts.find((p) => p._id === id || p.slug === id);
+    if (!product) {
+      res.status(404).json({ success: false, message: "প্রোডাক্টটি পাওয়া যায়নি।" });
+      return;
+    }
     res.json({ success: true, data: product });
   } catch (err: any) {
-    res.json({ success: true, data: fallbackProducts[0] });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
