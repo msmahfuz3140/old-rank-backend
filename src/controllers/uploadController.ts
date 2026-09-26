@@ -44,22 +44,9 @@ export const handleSingleUpload = async (req: Request, res: Response): Promise<v
     }
 
     if (!isCloudinaryConfigured()) {
-      // Graceful fallback for local development before user enters their Cloudinary credentials in .env
-      const isPdf = file.originalname.toLowerCase().endsWith(".pdf");
-      const simulatedUrl = isPdf
-        ? `https://res.cloudinary.com/demo/image/upload/sample.pdf`
-        : `https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&auto=format&fit=crop&q=80`;
-
-      res.status(200).json({
-        success: true,
-        message: "Cloudinary keys not detected in .env yet. Demo placeholder assigned.",
-        url: simulatedUrl,
-        public_id: `demo_${Date.now()}`,
-        format: file.mimetype.split("/")[1] || "jpg",
-        resource_type: isPdf ? "raw" : "image",
-        bytes: file.size,
-        originalName: file.originalname,
-        isDemoFallback: true,
+      res.status(503).json({
+        success: false,
+        message: "ছবি আপলোড সার্ভিস এখন সক্রিয় নেই। অ্যাডমিনকে জানান।",
       });
       return;
     }
