@@ -1,15 +1,26 @@
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 import { Readable } from "stream";
+import dotenv from "dotenv";
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "",
-  api_key: process.env.CLOUDINARY_API_KEY || "",
-  api_secret: process.env.CLOUDINARY_API_SECRET || "",
-  secure: true,
-});
+// Initial load
+dotenv.config({ override: true });
+
+export const configureCloudinary = () => {
+  dotenv.config({ override: true });
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "",
+    api_key: process.env.CLOUDINARY_API_KEY || "",
+    api_secret: process.env.CLOUDINARY_API_SECRET || "",
+    secure: true,
+  });
+  return cloudinary;
+};
+
+// Initial config
+configureCloudinary();
 
 export const isCloudinaryConfigured = (): boolean => {
+  dotenv.config({ override: true });
   return Boolean(
     process.env.CLOUDINARY_CLOUD_NAME &&
     process.env.CLOUDINARY_API_KEY &&
@@ -23,7 +34,7 @@ export const isCloudinaryConfigured = (): boolean => {
 export const uploadBufferToCloudinary = async (
   buffer: Buffer,
   originalName: string,
-  folder: string = "old-rank"
+  folder: string = "old-rank/products"
 ): Promise<UploadApiResponse> => {
   if (!isCloudinaryConfigured()) {
     throw new Error(
@@ -31,9 +42,11 @@ export const uploadBufferToCloudinary = async (
     );
   }
 
+  const client = configureCloudinary();
+
   return new Promise((resolve, reject) => {
     const isPdf = originalName.toLowerCase().endsWith(".pdf");
-    const uploadStream = cloudinary.uploader.upload_stream(
+    const uploadStream = client.uploader.upload_stream(
       {
         folder,
         resource_type: isPdf ? "raw" : "auto",
