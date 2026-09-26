@@ -383,10 +383,13 @@ async function resolveVendorId(vendorInput: any): Promise<mongoose.Types.ObjectI
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category, search, isHotDeal } = req.query;
+    const { category, search, isHotDeal, includeInactive } = req.query;
 
     if (mongoose.connection.readyState === 1) {
-      const filter: any = { isActive: true };
+      const filter: any = {};
+      if (includeInactive !== "true") {
+        filter.isActive = true;
+      }
 
       if (category && category !== "all") {
         const catDoc = await Category.findOne({
@@ -418,21 +421,20 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
         .sort({ createdAt: -1 })
         .limit(100);
 
-      if (products && products.length > 0) {
-        res.json({
-          success: true,
-          data: products,
-          pagination: {
-            total: products.length,
-            page: 1,
-            limit: products.length,
-            pages: 1,
-          },
-        });
-        return;
-      }
+      res.json({
+        success: true,
+        data: products,
+        pagination: {
+          total: products.length,
+          page: 1,
+          limit: products.length,
+          pages: 1,
+        },
+      });
+      return;
     }
 
+    // Only reached if MongoDB is completely disconnected
     let filtered = [...fallbackProducts];
     if (category && category !== "all") {
       filtered = filtered.filter((p) => p.category?.slug === category || p.category === category);

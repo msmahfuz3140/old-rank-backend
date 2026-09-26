@@ -4,6 +4,7 @@ dotenv.config();
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import morgan from "morgan";
+import mongoose from "mongoose";
 import { connectDB } from "./config/db";
 
 // Route imports
@@ -59,11 +60,23 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
+// Ensure database is connected before handling any API routes
+app.use(async (_req: Request, _res: Response, next: NextFunction) => {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
+  next();
+});
+
 // Health Check
 app.get("/api/v1/health", (_req: Request, res: Response) => {
   res.json({
     status: "healthy",
     service: "Old Rank API Server",
+    database: {
+      connected: mongoose.connection.readyState === 1,
+      readyState: mongoose.connection.readyState,
+    },
     timestamp: new Date().toISOString(),
     version: "2.0.0",
   });
