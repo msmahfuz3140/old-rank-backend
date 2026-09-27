@@ -789,11 +789,28 @@ export const reorderProducts = async (req: Request, res: Response): Promise<void
     }
 
     if (mongoose.connection.readyState === 1) {
-      const updateOps = orderedIds.map((id: string, index: number) => {
+      const bulkOps = orderedIds.map((id: string, index: number) => {
         const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
-        return Product.updateOne(query, { $set: { sortOrder: index } });
+        return {
+          updateOne: {
+            filter: query,
+            update: { $set: { sortOrder: index } },
+          },
+        };
       });
-      await Promise.all(updateOps);
+
+      if (bulkOps.length > 0) {
+        await Product.bulkWrite(bulkOps);
+      }
+
+      // Ensure any products not in orderedIds get a higher sortOrder so they never jump ahead of index 0
+      const validIds = orderedIds.filter((id: string) => mongoose.isValidObjectId(id));
+      if (validIds.length > 0) {
+        await Product.updateMany(
+          { _id: { $nin: validIds }, sortOrder: { $lt: orderedIds.length } },
+          { $set: { sortOrder: orderedIds.length + 10 } }
+        );
+      }
     }
 
     // Also reorder fallbackProducts array in memory
