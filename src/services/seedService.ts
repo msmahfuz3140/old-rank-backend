@@ -24,7 +24,7 @@ export const seedIfEmpty = async (): Promise<void> => {
         name: "জুয়েলারি ও অলংকার",
         slug: "jewelry",
         icon: "Gem",
-        image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&auto=format&fit=crop&q=80",
+        image: "https://res.cloudinary.com/qofsvx9f/image/upload/v1790535329/old-rank/jewelry/fehlrlobeorivjuij2im.jpg",
         level: 1,
         isComingSoon: false,
         isActive: true,
