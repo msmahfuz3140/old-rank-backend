@@ -39,6 +39,7 @@ export interface IProduct extends Document {
   rating: number;
   reviewCount: number;
   tags: string[];
+  sortOrder?: number;
   isActive: boolean;
 }
 
@@ -87,6 +88,7 @@ const ProductSchema = new Schema<IProduct>(
     rating: { type: Number, default: 5.0 },
     reviewCount: { type: Number, default: 0 },
     tags: [{ type: String }],
+    sortOrder: { type: Number, default: 0, index: true },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

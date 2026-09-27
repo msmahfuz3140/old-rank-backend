@@ -418,7 +418,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       const products = await Product.find(filter)
         .populate("category", "name slug icon image")
         .populate("vendor", "shopName slug logo rating isVerified")
-        .sort({ createdAt: -1 })
+        .sort({ sortOrder: 1, createdAt: -1 })
         .limit(100);
 
       res.json({
@@ -774,6 +774,41 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       success: true,
       message: "প্রোডাক্ট মুছে ফেলা হয়েছে!",
       id,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const reorderProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      res.status(400).json({ success: false, message: "orderedIds array is required" });
+      return;
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      const updateOps = orderedIds.map((id: string, index: number) => {
+        const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+        return Product.updateOne(query, { $set: { sortOrder: index } });
+      });
+      await Promise.all(updateOps);
+    }
+
+    // Also reorder fallbackProducts array in memory
+    const orderMap = new Map<string, number>();
+    orderedIds.forEach((id: string, idx: number) => orderMap.set(String(id), idx));
+
+    fallbackProducts.sort((a, b) => {
+      const orderA = orderMap.has(String(a._id)) ? orderMap.get(String(a._id))! : 9999;
+      const orderB = orderMap.has(String(b._id)) ? orderMap.get(String(b._id))! : 9999;
+      return orderA - orderB;
+    });
+
+    res.json({
+      success: true,
+      message: "প্রোডাক্টের ক্রম সফলভাবে ডাটাবেজে আপডেট করা হয়েছে!",
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

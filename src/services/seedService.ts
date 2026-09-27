@@ -147,7 +147,7 @@ export const seedIfEmpty = async (): Promise<void> => {
         reviewCount: 380,
         isVerified: true,
         totalProducts: 8,
-        phone: "01956016119",
+        phone: "01301010553",
         address: "Dhaka, Bangladesh",
         description: "Official Old Rank premium jewelry line & exclusive royal ornaments.",
       },
