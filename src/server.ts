@@ -18,6 +18,7 @@ import vendorRoutes from "./routes/vendorRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import uploadRoutes from "./routes/uploadRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
+import reviewRoutes from "./routes/reviewRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -93,6 +94,7 @@ app.use("/api/v1/vendors", vendorRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/settings", settingsRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {
