@@ -10,7 +10,7 @@ const fallbackCategories = [
     name: "জুয়েলারি ও অলংকার",
     slug: "jewelry",
     icon: "Gem",
-    image: "https://res.cloudinary.com/qofsvx9f/image/upload/v1790535329/old-rank/jewelry/fehlrlobeorivjuij2im.jpg",
+    image: "/images/jewelry-category.jpg",
     level: 1,
     isComingSoon: false,
     subcategories: [

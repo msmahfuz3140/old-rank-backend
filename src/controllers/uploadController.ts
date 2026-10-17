@@ -57,7 +57,7 @@ export const handleSingleUpload = async (req: Request, res: Response): Promise<v
     res.status(200).json({
       success: true,
       message: "ফাইল সফলভাবে ক্লাউডিনারিতে আপলোড হয়েছে!",
-      url: result.secure_url,
+      url: result.delivery_url || result.secure_url,
       public_id: result.public_id,
       format: result.format,
       resource_type: result.resource_type,
@@ -116,7 +116,7 @@ export const handleMultipleUpload = async (req: Request, res: Response): Promise
       success: true,
       message: `${results.length}টি ফাইল সফলভাবে আপলোড হয়েছে!`,
       results: results.map((r) => ({
-        url: r.secure_url,
+        url: r.delivery_url || r.secure_url,
         public_id: r.public_id,
         format: r.format,
         resource_type: r.resource_type,
