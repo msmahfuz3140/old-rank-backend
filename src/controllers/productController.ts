@@ -698,6 +698,10 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     const { id } = req.params;
     const updates = { ...req.body };
 
+    if (Array.isArray(updates.galleryImages) && updates.galleryImages.length > 0 && !updates.mainImage) {
+      updates.mainImage = updates.galleryImages[0];
+    }
+
     if (mongoose.connection.readyState === 1) {
       if (updates.category) {
         updates.category = await resolveCategoryId(updates.category);
