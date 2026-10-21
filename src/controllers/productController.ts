@@ -91,6 +91,31 @@ const fallbackCategories = [
   },
 ];
 
+let productsSyncVersion = Date.now();
+
+export const touchProductsVersion = () => {
+  productsSyncVersion = Date.now();
+};
+
+export const getProductsSyncVersion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    let count = 0;
+    if (mongoose.connection.readyState === 1) {
+      count = await Product.countDocuments();
+    } else {
+      count = fallbackProducts.length;
+    }
+    res.setHeader("Cache-Control", "no-cache");
+    res.json({
+      success: true,
+      version: productsSyncVersion,
+      count,
+    });
+  } catch (err: any) {
+    res.json({ success: true, version: productsSyncVersion, count: 0 });
+  }
+};
+
 let fallbackProducts: any[] = [
   {
     _id: "p_j1",
@@ -644,6 +669,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         .populate("vendor", "shopName slug logo rating isVerified");
 
       fallbackProducts.unshift(populatedProduct.toObject ? populatedProduct.toObject() : populatedProduct);
+      touchProductsVersion();
 
       res.status(201).json({
         success: true,
@@ -685,6 +711,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     };
 
     fallbackProducts.unshift(fallbackProd);
+    touchProductsVersion();
 
     res.status(201).json({
       success: true,
@@ -724,6 +751,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
         if (idx !== -1) {
           fallbackProducts[idx] = updated.toObject ? updated.toObject() : updated;
         }
+        touchProductsVersion();
 
         res.json({
           success: true,
@@ -737,6 +765,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     const idx = fallbackProducts.findIndex((p) => p._id === id || p.slug === id);
     if (idx !== -1) {
       fallbackProducts[idx] = { ...fallbackProducts[idx], ...updates };
+      touchProductsVersion();
       res.json({
         success: true,
         message: "প্রোডাক্ট সফলভাবে আপডেট করা হয়েছে!",
@@ -763,6 +792,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       const deleted = await Product.findOneAndDelete(query);
 
       fallbackProducts = fallbackProducts.filter((p) => p._id !== id && p.slug !== id);
+      touchProductsVersion();
 
       if (deleted) {
         res.json({
@@ -776,6 +806,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     }
 
     fallbackProducts = fallbackProducts.filter((p) => p._id !== id && p.slug !== id);
+    touchProductsVersion();
 
     res.json({
       success: true,
@@ -829,6 +860,7 @@ export const reorderProducts = async (req: Request, res: Response): Promise<void
       const orderB = orderMap.has(String(b._id)) ? orderMap.get(String(b._id))! : 9999;
       return orderA - orderB;
     });
+    touchProductsVersion();
 
     res.json({
       success: true,

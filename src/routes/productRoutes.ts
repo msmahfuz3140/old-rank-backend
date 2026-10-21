@@ -4,6 +4,7 @@ import {
   getProductBySlug,
   getQuickView,
   getCategories,
+  getProductsSyncVersion,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -13,6 +14,7 @@ import {
 const router = Router();
 
 router.get("/categories", getCategories);
+router.get("/sync-version", getProductsSyncVersion);
 router.get("/quick-view/:id", getQuickView);
 router.get("/slug/:slug", getProductBySlug);
 router.get("/", getProducts);
