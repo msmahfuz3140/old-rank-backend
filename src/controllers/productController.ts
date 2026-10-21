@@ -421,6 +421,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
         .sort({ sortOrder: 1, createdAt: -1 })
         .limit(100);
 
+      res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
       res.json({
         success: true,
         data: products,
@@ -487,6 +488,7 @@ export const getProductBySlug = async (req: Request, res: Response): Promise<voi
           .populate("vendor", "shopName slug logo rating isVerified")
           .limit(4);
 
+        res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
         res.json({
           success: true,
           data: {
@@ -560,6 +562,7 @@ export const getQuickView = async (req: Request, res: Response): Promise<void> =
 
 export const getCategories = async (_req: Request, res: Response): Promise<void> => {
   try {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=1200");
     if (mongoose.connection.readyState === 1) {
       const dbCats = await Category.find({ isActive: true }).sort({ level: 1 }).maxTimeMS(5000);
       if (dbCats && dbCats.length > 0) {
