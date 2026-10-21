@@ -114,6 +114,7 @@ export const uploadBufferToCloudinary = async (
             ],
         use_filename: true,
         unique_filename: true,
+        headers: "Cache-Control: public, max-age=31536000, immutable",
       },
       (error, result) => {
         if (error) {
