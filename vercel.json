@@ -13,6 +13,9 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "CLOUDINARY_CLOUD_NAME": "gcjw0euk",
+    "CLOUDINARY_API_KEY": "126746269164825",
+    "CLOUDINARY_API_SECRET": "DCGtDdAdLEPcAdJdGbuLQhOivVw"
   }
 }
