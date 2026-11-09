@@ -23,16 +23,7 @@ export const connectDB = async (): Promise<void> => {
       });
       console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
 
-      // If manual seed is needed, run `npm run seed` or set AUTO_SEED=true in .env
-      if (process.env.AUTO_SEED === "true") {
-        try {
-          const { seedIfEmpty } = await import("../services/seedService");
-          await seedIfEmpty();
-        } catch (seedErr: any) {
-          console.warn(`Seed check note: ${seedErr.message}`);
-        }
-      }
-
+      // Database connected successfully
       return conn;
     } catch (error: any) {
       console.error(`❌ MongoDB connection issue: ${error.message}`);
