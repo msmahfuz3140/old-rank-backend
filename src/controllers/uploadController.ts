@@ -52,14 +52,15 @@ export const handleSingleUpload = async (req: Request, res: Response): Promise<v
 
     const folder = req.body.folder || (file.originalname.toLowerCase().endsWith(".pdf") ? "old-rank/documents" : "old-rank/products");
 
-    // 1. Try Live Cloudinary Upload if configured
+    // 1. Live Cloudinary Upload
     if (isCloudinaryConfigured()) {
       try {
         const result = await uploadBufferToCloudinary(file.buffer, file.originalname, folder);
         res.status(200).json({
           success: true,
           message: "ফাইল সফলভাবে ক্লাউডিনারিতে আপলোড হয়েছে!",
-          url: result.delivery_url || result.secure_url,
+          url: result.secure_url,
+          delivery_url: result.delivery_url,
           public_id: result.public_id,
           format: result.format,
           resource_type: result.resource_type,
@@ -68,24 +69,20 @@ export const handleSingleUpload = async (req: Request, res: Response): Promise<v
         });
         return;
       } catch (cloudErr: any) {
-        console.warn("Cloudinary upload failed, falling back to sharp-optimized data URL:", cloudErr?.message || cloudErr);
+        console.error("Cloudinary upload failed:", cloudErr);
+        res.status(500).json({
+          success: false,
+          message: `ক্লাউডিনারিতে আপলোড ব্যর্থ হয়েছে: ${cloudErr?.message || cloudErr}`,
+        });
+        return;
       }
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "ক্লাউডিনারি ক্রেডেনশিয়াল কনফিগার করা নেই। অনুগ্রহ করে .env ফাইল চেক করুন।",
+      });
+      return;
     }
-
-    // 2. High-Efficiency Local Compression Fallback (Upload NEVER fails)
-    const { buffer: optimizedBuffer, format } = await optimizeImageBuffer(file.buffer, file.originalname);
-    const mime = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : file.mimetype || "image/jpeg";
-    const dataUrl = `data:${mime};base64,${optimizedBuffer.toString("base64")}`;
-
-    res.status(200).json({
-      success: true,
-      message: "ছবি সফলভাবে অপটিমাইজ ও যুক্ত হয়েছে!",
-      url: dataUrl,
-      public_id: `local_${Date.now()}`,
-      format: format || "jpg",
-      bytes: optimizedBuffer.length,
-      originalName: file.originalname,
-    });
   } catch (error: any) {
     console.error("Upload Error:", error);
     res.status(500).json({
@@ -113,7 +110,7 @@ export const handleMultipleUpload = async (req: Request, res: Response): Promise
 
     const folder = req.body.folder || "old-rank/products";
 
-    // 1. Try Live Cloudinary Upload
+    // 1. Live Cloudinary Upload
     if (isCloudinaryConfigured()) {
       try {
         const uploadPromises = files.map((file) => uploadBufferToCloudinary(file.buffer, file.originalname, folder));
@@ -121,9 +118,10 @@ export const handleMultipleUpload = async (req: Request, res: Response): Promise
 
         res.status(200).json({
           success: true,
-          message: `${results.length}টি ফাইল সফলভাবে আপলোড হয়েছে!`,
+          message: `${results.length}টি ফাইল সফলভাবে ক্লাউডিনারিতে আপলোড হয়েছে!`,
           results: results.map((r) => ({
-            url: r.delivery_url || r.secure_url,
+            url: r.secure_url,
+            delivery_url: r.delivery_url,
             public_id: r.public_id,
             format: r.format,
             resource_type: r.resource_type,
@@ -132,30 +130,20 @@ export const handleMultipleUpload = async (req: Request, res: Response): Promise
         });
         return;
       } catch (cloudErr: any) {
-        console.warn("Multi-Cloudinary upload failed, using optimized data URL fallback:", cloudErr?.message || cloudErr);
+        console.error("Multi-Cloudinary upload failed:", cloudErr);
+        res.status(500).json({
+          success: false,
+          message: `ক্লাউডিনারিতে ফাইল আপলোড ব্যর্থ হয়েছে: ${cloudErr?.message || cloudErr}`,
+        });
+        return;
       }
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "ক্লাউডিনারি ক্রেডেনশিয়াল কনফিগার করা নেই। অনুগ্রহ করে .env ফাইল চেক করুন।",
+      });
+      return;
     }
-
-    // 2. High-Efficiency Local Compression Fallback
-    const localResults = await Promise.all(
-      files.map(async (file, idx) => {
-        const { buffer: optBuffer, format } = await optimizeImageBuffer(file.buffer, file.originalname);
-        const mime = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : file.mimetype || "image/jpeg";
-        return {
-          url: `data:${mime};base64,${optBuffer.toString("base64")}`,
-          public_id: `local_${Date.now()}_${idx}`,
-          format: format || "jpg",
-          resource_type: "image",
-          bytes: optBuffer.length,
-        };
-      })
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `${localResults.length}টি ছবি সফলভাবে অপটিমাইজ ও যুক্ত হয়েছে!`,
-      results: localResults,
-    });
   } catch (error: any) {
     console.error("Multi-upload Error:", error);
     res.status(500).json({

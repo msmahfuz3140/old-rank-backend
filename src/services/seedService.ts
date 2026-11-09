@@ -7,6 +7,7 @@ import { Coupon } from "../models/Coupon";
 
 export const seedIfEmpty = async (): Promise<void> => {
   if (mongoose.connection.readyState !== 1) return;
+  if (process.env.AUTO_SEED !== "true") return;
 
   try {
     const productCount = await Product.countDocuments();

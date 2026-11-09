@@ -61,6 +61,26 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
+// Enable ETag for 304 Not Modified ultra-fast sub-millisecond responses
+app.set("etag", "strong");
+
+// High-speed browser caching & performance middleware for read-only GET APIs
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET") {
+    const path = req.path;
+    if (path.includes("/sync-version") || path.includes("/health")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    } else if (path.includes("/delivery")) {
+      res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    } else if (path.includes("/settings") || path.includes("/categories") || path.includes("/vendors")) {
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=1200");
+    } else if (path.includes("/products")) {
+      res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    }
+  }
+  next();
+});
+
 // Ensure database is connected before handling any API routes
 app.use(async (_req: Request, _res: Response, next: NextFunction) => {
   if (mongoose.connection.readyState !== 1) {

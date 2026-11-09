@@ -23,12 +23,14 @@ export const connectDB = async (): Promise<void> => {
       });
       console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
 
-      // Auto-seed initial store products and categories if MongoDB is completely empty
-      try {
-        const { seedIfEmpty } = await import("../services/seedService");
-        await seedIfEmpty();
-      } catch (seedErr: any) {
-        console.warn(`Seed check note: ${seedErr.message}`);
+      // If manual seed is needed, run `npm run seed` or set AUTO_SEED=true in .env
+      if (process.env.AUTO_SEED === "true") {
+        try {
+          const { seedIfEmpty } = await import("../services/seedService");
+          await seedIfEmpty();
+        } catch (seedErr: any) {
+          console.warn(`Seed check note: ${seedErr.message}`);
+        }
       }
 
       return conn;
